@@ -1260,7 +1260,7 @@ export interface CharacterDef {
 export const CHARACTERS: CharacterDef[] = [
   // ── スターター 3体 (colorMapのみ) ──────────────────────────────────────────
   { id:'yagi', name:'やぎ', emoji:'🐐',
-    description:'ゼロからビジネスを目指す熱いやぎ', colorMap:{} },
+    description:'マイペースでたくましいやぎ', colorMap:{} },
   { id:'neko', name:'ねこ', emoji:'🐱',
     description:'のんびりやだけど実はがんばるねこ',
     colorMap:{ [S]:'#ffb7c5',[F]:'#e8829a',[T]:'#d4607a',[B]:'#ffd4e8',[G]:'#ff9eb5' } },
