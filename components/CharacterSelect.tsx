@@ -14,10 +14,10 @@ export default function CharacterSelect({ onSelect }: Props) {
       className="flex flex-col items-center justify-center py-8 px-4"
     >
       <h1 style={{ color: "var(--gold)", letterSpacing: "0.3em" }} className="text-3xl font-bold mb-1">
-        GOTCHI
+        PIXFIT
       </h1>
       <p style={{ color: "var(--text-dim)" }} className="text-xs mb-2 tracking-widest">
-        DIET VERSION
+        PIXEL FITNESS
       </p>
       <p style={{ color: "var(--text)" }} className="text-sm mb-8">
         キャラクターを選んでね

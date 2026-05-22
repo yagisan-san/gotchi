@@ -240,7 +240,7 @@ export default function Page() {
 
   function handleShare() {
     if (!state) return;
-    const text = `【GOTCHI ダイエット記録】\n体重：${state.weight || "未入力"}kg　${stageInfo.label}\n${state.streak > 0 ? `🔥${state.streak}日連続！` : ""}\nhttps://gotchi-diet.vercel.app\n#GOTCHI #ダイエット`;
+    const text = `【PIXFIT ダイエット記録】\n体重：${state.weight || "未入力"}kg　${stageInfo.label}\n${state.streak > 0 ? `🔥${state.streak}日連続！` : ""}\nhttps://gotchi-two.vercel.app\n#PIXFIT #ダイエット`;
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, "_blank");
   }
 
@@ -498,7 +498,7 @@ export default function Page() {
       {/* ── CHAR TAB ── */}
       {tab === "char" && (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "14px 20px 28px", maxWidth: "390px", margin: "0 auto", width: "100%" }}>
-          <h1 style={{ color: "var(--gold)", letterSpacing: "0.3em", fontSize: "20px", fontWeight: "bold", marginBottom: "2px" }}>GOTCHI</h1>
+          <h1 style={{ color: "var(--gold)", letterSpacing: "0.3em", fontSize: "20px", fontWeight: "bold", marginBottom: "2px" }}>PIXFIT</h1>
           <p style={{ color: "var(--text-dim)", fontSize: "11px", letterSpacing: "0.1em", marginBottom: "12px" }}>
             {charDef?.emoji} {charDef?.name} &nbsp;/&nbsp; {moodInfo.emoji} {moodInfo.label}
           </p>

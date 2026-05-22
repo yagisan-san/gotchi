@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "GOTCHI — ダイエットたまごっち",
-  description: "体重を記録してキャラを育てる習慣管理アプリ",
+  title: "PIXFIT — ピクセルキャラと一緒にダイエット",
+  description: "体重を記録してピクセルキャラを育てる習慣管理アプリ",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
