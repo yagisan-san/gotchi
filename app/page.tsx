@@ -19,6 +19,8 @@ const STORAGE_KEY = "gotchi_v2";
 const MAX_PETS = 5;
 type Tab = "char" | "record" | "food" | "exercise" | "mypage";
 type MypageView = "main" | "charChange";
+type RecordSubView = "main" | "history";
+type HistoryTab = "graph" | "calendar";
 interface FloatingItem { id: number; emoji: string }
 
 export default function Page() {
@@ -36,6 +38,13 @@ export default function Page() {
   const [selectedExercise, setSelectedExercise] = useState<typeof EXERCISES[0] | null>(null);
   const [newBadge, setNewBadge] = useState<string | null>(null);
   const [mealFeedback, setMealFeedback] = useState<string | null>(null);
+  const [recordSubView, setRecordSubView] = useState<RecordSubView>("main");
+  const [historyTab, setHistoryTab] = useState<HistoryTab>("graph");
+  const [calMonth, setCalMonth] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
+  const [graphPeriod, setGraphPeriod] = useState<"all" | "month" | "week">("all");
+  const [graphMonthOffset, setGraphMonthOffset] = useState(0);
+  const [graphWeekOffset, setGraphWeekOffset] = useState(0);
+  const [logShowCount, setLogShowCount] = useState(50);
   const prevUnlockedRef = useRef<string[]>([]);
 
   useEffect(() => {
@@ -73,6 +82,15 @@ export default function Page() {
 
   // キャラ変更サブ画面
   if (mypageView === "charChange") {
+    const unlockedColIds = getUnlockedIds(state);
+    const unlockedCharIds = new Set(
+      CHARACTERS.filter(c => !c.unlockId || unlockedColIds.includes(c.unlockId)).map(c => c.id)
+    );
+    // 解放済みを先に、未解放を後ろに並べる
+    const sorted = [
+      ...CHARACTERS.filter(c => unlockedCharIds.has(c.id)),
+      ...CHARACTERS.filter(c => !unlockedCharIds.has(c.id)),
+    ];
     return (
       <div style={{ background: "var(--bg)", minHeight: "100vh" }}>
         <div style={{ maxWidth: "390px", margin: "0 auto", padding: "18px 20px 10px", display: "flex", alignItems: "center", gap: "12px" }}>
@@ -81,31 +99,57 @@ export default function Page() {
             ← 戻る
           </button>
           <h2 style={{ color: "var(--gold)", fontSize: "16px", fontWeight: "bold", letterSpacing: "0.1em" }}>キャラクター変更</h2>
+          <span style={{ color: "var(--text-dim)", fontSize: "11px", marginLeft: "auto" }}>
+            {unlockedCharIds.size}/{CHARACTERS.length}体解放
+          </span>
         </div>
-        <div style={{ maxWidth: "390px", margin: "0 auto", padding: "6px 20px 28px", display: "flex", flexDirection: "column", gap: "10px" }}>
-          {CHARACTERS.map(char => (
-            <button key={char.id} onClick={() => { setState(s => s ? { ...s, characterId: char.id } : s); setMypageView("main"); }}
-              style={{
-                background: "var(--surface)",
-                border: `2px solid ${state.characterId === char.id ? "var(--gold)" : "var(--border)"}`,
-                fontFamily: "inherit", borderRadius: "14px", padding: "16px 18px",
-                display: "flex", alignItems: "center", gap: "18px",
-                textAlign: "left", cursor: "pointer", width: "100%",
-              }}>
-              <div style={{ flexShrink: 0 }} className={state.characterId === char.id ? "glow-static" : ""}>
-                <PixelCanvas pixels={getCharPixels(char.id, 1)} scale={3} />
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ color: state.characterId === char.id ? "var(--gold)" : "var(--text)", fontSize: "16px", fontWeight: "bold", marginBottom: "4px" }}>
-                  {char.emoji} {char.name}
-                </p>
-                <p style={{ color: "var(--text-dim)", fontSize: "12px", lineHeight: 1.5 }}>{char.description}</p>
-                {state.characterId === char.id && (
-                  <p style={{ color: "var(--gold)", fontSize: "11px", marginTop: "6px" }}>✓ 選択中</p>
-                )}
-              </div>
-            </button>
-          ))}
+        <div style={{ maxWidth: "390px", margin: "0 auto", padding: "6px 20px 28px", display: "flex", flexDirection: "column", gap: "8px" }}>
+          {sorted.map(char => {
+            const unlocked = unlockedCharIds.has(char.id);
+            const isCurrent = state.characterId === char.id;
+            // 解放条件テキスト
+            const collectionItem = unlocked ? null : COLLECTION.find(c => c.id === char.unlockId);
+            return (
+              <button key={char.id}
+                onClick={() => {
+                  if (!unlocked) return;
+                  setState(s => s ? { ...s, characterId: char.id } : s);
+                  setMypageView("main");
+                }}
+                style={{
+                  background: unlocked ? "var(--surface)" : "var(--bg)",
+                  border: `2px solid ${isCurrent ? "var(--gold)" : unlocked ? "var(--border)" : "#1e1e1e"}`,
+                  fontFamily: "inherit", borderRadius: "14px", padding: "14px 16px",
+                  display: "flex", alignItems: "center", gap: "14px",
+                  textAlign: "left", cursor: unlocked ? "pointer" : "default", width: "100%",
+                  opacity: unlocked ? 1 : 0.7,
+                }}>
+                {/* ピクセルアート：未解放はシルエット */}
+                <div style={{ flexShrink: 0, filter: unlocked ? "none" : "brightness(0)", ...(isCurrent ? {} : {}) }}
+                  className={isCurrent ? "glow-static" : ""}>
+                  <PixelCanvas pixels={getCharPixels(char.id, 1)} scale={3} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  {unlocked ? (
+                    <>
+                      <p style={{ color: isCurrent ? "var(--gold)" : "var(--text)", fontSize: "15px", fontWeight: "bold", marginBottom: "3px" }}>
+                        {char.emoji} {char.name}
+                      </p>
+                      <p style={{ color: "var(--text-dim)", fontSize: "11px", lineHeight: 1.4 }}>{char.description}</p>
+                      {isCurrent && <p style={{ color: "var(--gold)", fontSize: "11px", marginTop: "4px" }}>✓ 選択中</p>}
+                    </>
+                  ) : (
+                    <>
+                      <p style={{ color: "#444", fontSize: "15px", fontWeight: "bold", marginBottom: "3px" }}>？？？？</p>
+                      <p style={{ color: "#444", fontSize: "11px", lineHeight: 1.4 }}>
+                        🔒 {collectionItem?.hint ?? "???"}
+                      </p>
+                    </>
+                  )}
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
     );
@@ -144,7 +188,7 @@ export default function Page() {
     const newStreak = isNewDay ? (daysSince <= 1 ? state.streak + 1 : 1) : state.streak;
     const entry: LogEntry = { date: today, weight: w, steps: st || 0, calories: totalBurned, bmi, stage };
     const wasComplete = isMissionComplete(mission, state);
-    const ns = { ...state, log: [entry, ...state.log.filter(l => l.date !== today)].slice(0, 7), streak: newStreak, lastRecordDate: today };
+    const ns = { ...state, log: [entry, ...state.log.filter(l => l.date !== today)], streak: newStreak, lastRecordDate: today };
     ns.missionsCompleted = state.missionsCompleted + (!wasComplete && isMissionComplete(mission, ns) ? 1 : 0);
     setState(ns); checkBadges(ns);
     setSaved(true); setTimeout(() => setSaved(false), 1500);
@@ -181,7 +225,15 @@ export default function Page() {
     const justUnlocked = newIds.find(id => !prevUnlockedRef.current.includes(id));
     if (justUnlocked) {
       const item = COLLECTION.find(c => c.id === justUnlocked);
-      if (item) { setNewBadge(`${item.emoji} ${item.name} 解放！`); setTimeout(() => setNewBadge(null), 2500); }
+      if (item) {
+        // キャラ解放ならキャラ名を通知、バッジのみなら実績名を通知
+        const unlockedChar = CHARACTERS.find(c => c.unlockId === justUnlocked);
+        const msg = unlockedChar
+          ? `🎉 ${unlockedChar.emoji} ${unlockedChar.name} 解放！`
+          : `${item.emoji} ${item.name} 達成！`;
+        setNewBadge(msg);
+        setTimeout(() => setNewBadge(null), 3000);
+      }
     }
     prevUnlockedRef.current = newIds;
   }
@@ -218,6 +270,220 @@ export default function Page() {
   ];
 
   const TAB_PAD = "calc(68px + env(safe-area-inset-bottom, 0px))";
+
+  // ── 記録履歴サブ画面 ─────────────────────────────────────────────────────
+  if (tab === "record" && recordSubView === "history") {
+    const allSorted = [...state.log].sort((a, b) => a.date.localeCompare(b.date));
+
+    // 期間フィルター
+    const getWeekBounds = (offset: number) => {
+      const today = new Date(); today.setHours(0,0,0,0);
+      const mon = new Date(today); mon.setDate(today.getDate() - ((today.getDay()+6)%7) + offset*7);
+      const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+      return { mon, sun };
+    };
+    const getMonthBase = (offset: number) => {
+      const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + offset);
+      return { y: d.getFullYear(), m: d.getMonth() + 1 };
+    };
+    const parseDate = (s: string) => { const [y,m,d] = s.split('/').map(Number); return new Date(y,m-1,d); };
+
+    const filtered = (() => {
+      if (graphPeriod === "month") {
+        const { y, m } = getMonthBase(graphMonthOffset);
+        const prefix = `${y}/${String(m).padStart(2,'0')}`;
+        return allSorted.filter(e => e.date.startsWith(prefix));
+      }
+      if (graphPeriod === "week") {
+        const { mon, sun } = getWeekBounds(graphWeekOffset);
+        return allSorted.filter(e => { const d = parseDate(e.date); return d >= mon && d <= sun; });
+      }
+      return allSorted;
+    })();
+
+    const periodLabel = (() => {
+      if (graphPeriod === "month") { const { y, m } = getMonthBase(graphMonthOffset); return `${y}年${m}月`; }
+      if (graphPeriod === "week") { const { mon, sun } = getWeekBounds(graphWeekOffset); return `${mon.getMonth()+1}/${mon.getDate()}〜${sun.getMonth()+1}/${sun.getDate()}`; }
+      return "全期間";
+    })();
+
+    const GraphView = () => {
+      if (filtered.length < 2) return (
+        <p style={{ color: "var(--text-dim)", fontSize: "13px", textAlign: "center", padding: "28px 0" }}>
+          {filtered.length === 0 ? "この期間に記録がありません" : "記録が2件以上になるとグラフが表示されます"}
+        </p>
+      );
+      const W = 320, H = 170;
+      const pad = { t: 16, r: 28, b: 32, l: 44 };
+      const iW = W - pad.l - pad.r, iH = H - pad.t - pad.b;
+      const weights = filtered.map(e => e.weight);
+      const tw = Number(state.targetWeight) || 0;
+      const allVals = tw > 0 ? [...weights, tw] : weights;
+      const rawMin = Math.min(...allVals), rawMax = Math.max(...allVals);
+      const span = rawMax - rawMin || 2;
+      const minW = rawMin - span * 0.15, maxW = rawMax + span * 0.15;
+      const range = maxW - minW;
+      const px = (i: number) => pad.l + (i / Math.max(filtered.length - 1, 1)) * iW;
+      const py = (w: number) => pad.t + iH - ((w - minW) / range) * iH;
+      const yTicks = Array.from({ length: 5 }, (_, i) => minW + (range / 4) * i);
+      const step = Math.max(1, Math.ceil(filtered.length / 5));
+      const linePath = filtered.map((e, i) => `${i === 0 ? 'M' : 'L'}${px(i).toFixed(1)} ${py(e.weight).toFixed(1)}`).join(' ');
+      return (
+        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: "auto" }}>
+          {yTicks.map((w, i) => (
+            <g key={i}>
+              <line x1={pad.l} y1={py(w).toFixed(1)} x2={W - pad.r} y2={py(w).toFixed(1)} stroke="#2a2a2a" strokeWidth="1" />
+              <text x={pad.l - 5} y={py(w) + 4} textAnchor="end" fontSize="9" fill="#666">{w.toFixed(1)}</text>
+            </g>
+          ))}
+          {tw > 0 && <>
+            <line x1={pad.l} y1={py(tw).toFixed(1)} x2={W - pad.r} y2={py(tw).toFixed(1)} stroke="#98d8c8" strokeWidth="1.5" strokeDasharray="5 3" />
+            <text x={W - pad.r + 3} y={py(tw) + 4} fontSize="8" fill="#98d8c8">目標</text>
+          </>}
+          <path d={linePath} fill="none" stroke="#f4c87a" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+          {filtered.map((e, i) => <circle key={i} cx={px(i).toFixed(1)} cy={py(e.weight).toFixed(1)} r="3.5" fill="#f4c87a" />)}
+          {filtered.map((e, i) => {
+            if (i % step !== 0 && i !== filtered.length - 1) return null;
+            const parts = e.date.split('/');
+            return <text key={i} x={px(i).toFixed(1)} y={H - 4} textAnchor="middle" fontSize="9" fill="#666">{parseInt(parts[1])}/{parseInt(parts[2])}</text>;
+          })}
+        </svg>
+      );
+    };
+
+    const CalView = () => {
+      const { y, m } = calMonth;
+      const firstDay = new Date(y, m, 1).getDay();
+      const daysInMonth = new Date(y, m + 1, 0).getDate();
+      const logMap = new Map(state.log.map(e => [e.date, e]));
+      const cells: Array<{ d: number; dateStr: string } | null> = [
+        ...Array(firstDay).fill(null),
+        ...Array.from({ length: daysInMonth }, (_, i) => {
+          const d = i + 1;
+          return { d, dateStr: `${y}/${String(m + 1).padStart(2, '0')}/${String(d).padStart(2, '0')}` };
+        }),
+      ];
+      while (cells.length % 7 !== 0) cells.push(null);
+      const todayStr2 = todayStr();
+      return (
+        <div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+            <button onClick={() => setCalMonth(p => { const d = new Date(p.y, p.m - 1); return { y: d.getFullYear(), m: d.getMonth() }; })}
+              style={{ background: "var(--border)", border: "none", color: "var(--text)", fontFamily: "inherit", width: "34px", height: "34px", borderRadius: "8px", fontSize: "18px", cursor: "pointer" }}>‹</button>
+            <span style={{ color: "var(--text)", fontSize: "14px", fontWeight: "bold" }}>{y}年{m + 1}月</span>
+            <button onClick={() => setCalMonth(p => { const d = new Date(p.y, p.m + 1); return { y: d.getFullYear(), m: d.getMonth() }; })}
+              style={{ background: "var(--border)", border: "none", color: "var(--text)", fontFamily: "inherit", width: "34px", height: "34px", borderRadius: "8px", fontSize: "18px", cursor: "pointer" }}>›</button>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "2px", marginBottom: "4px" }}>
+            {['日','月','火','水','木','金','土'].map((d, i) => (
+              <div key={d} style={{ textAlign: "center", fontSize: "10px", color: i === 0 ? "#e8935a" : i === 6 ? "#a8d8ea" : "var(--text-dim)", padding: "3px 0" }}>{d}</div>
+            ))}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "3px" }}>
+            {cells.map((cell, i) => {
+              if (!cell) return <div key={i} />;
+              const entry = logMap.get(cell.dateStr);
+              const isToday = cell.dateStr === todayStr2;
+              const isSun = i % 7 === 0, isSat = i % 7 === 6;
+              return (
+                <div key={i} style={{
+                  background: entry ? "rgba(244,200,122,0.12)" : "var(--bg)",
+                  border: `1px solid ${isToday ? "var(--gold)" : entry ? "rgba(244,200,122,0.35)" : "var(--border)"}`,
+                  borderRadius: "6px", minHeight: "42px",
+                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "1px",
+                }}>
+                  <span style={{ fontSize: "11px", fontWeight: isToday ? "bold" : "normal", color: isToday ? "var(--gold)" : isSun ? "#e8935a" : isSat ? "#a8d8ea" : "var(--text)" }}>{cell.d}</span>
+                  {entry && <span style={{ fontSize: "9px", color: "var(--gold)", fontWeight: "bold" }}>{entry.weight}kg</span>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    };
+
+    return (
+      <div style={{ background: "var(--bg)", minHeight: "100vh" }}>
+        <div style={{ maxWidth: "390px", margin: "0 auto", padding: "18px 20px 10px", display: "flex", alignItems: "center", gap: "12px" }}>
+          <button onClick={() => { setRecordSubView("main"); setLogShowCount(50); }}
+            style={{ color: "var(--gold)", background: "transparent", border: "1px solid var(--border)", fontFamily: "inherit", padding: "8px 14px", borderRadius: "10px", fontSize: "13px", fontWeight: "bold", cursor: "pointer", flexShrink: 0 }}>
+            ← 戻る
+          </button>
+          <h2 style={{ color: "var(--gold)", fontSize: "16px", fontWeight: "bold", letterSpacing: "0.1em" }}>記録履歴</h2>
+          <span style={{ color: "var(--text-dim)", fontSize: "12px", marginLeft: "auto" }}>{state.log.length}件</span>
+        </div>
+        <div style={{ maxWidth: "390px", margin: "0 auto", padding: "0 20px 10px" }}>
+          <div style={{ display: "flex", gap: "6px", background: "var(--surface)", borderRadius: "12px", padding: "4px" }}>
+            {(['graph', 'calendar'] as HistoryTab[]).map(t => (
+              <button key={t} onClick={() => setHistoryTab(t)}
+                style={{ flex: 1, padding: "8px", borderRadius: "8px", border: "none", fontFamily: "inherit", fontSize: "13px", fontWeight: "bold", cursor: "pointer", background: historyTab === t ? "var(--gold)" : "transparent", color: historyTab === t ? "#0d0d0d" : "var(--text-dim)" }}>
+                {t === "graph" ? "📈 グラフ" : "📅 カレンダー"}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div style={{ maxWidth: "390px", margin: "0 auto", padding: "0 20px 28px", display: "flex", flexDirection: "column", gap: "10px" }}>
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "14px", padding: "14px 16px" }}>
+            {historyTab === "graph" && <>
+              <p style={{ color: "var(--gold)", fontSize: "12px", fontWeight: "bold", marginBottom: "10px" }}>
+                体重推移　{state.targetWeight && <span style={{ color: "var(--green)", fontWeight: "normal" }}>— — 目標 {state.targetWeight}kg</span>}
+              </p>
+              {/* 期間選択 */}
+              <div style={{ display: "flex", gap: "4px", marginBottom: "10px" }}>
+                {([["all","全期間"], ["month","月"], ["week","週"]] as const).map(([p, label]) => (
+                  <button key={p} onClick={() => { setGraphPeriod(p); setGraphMonthOffset(0); setGraphWeekOffset(0); }}
+                    style={{ flex: 1, padding: "6px 4px", border: `1px solid ${graphPeriod === p ? "var(--gold)" : "var(--border)"}`, borderRadius: "8px", fontFamily: "inherit", fontSize: "12px", fontWeight: "bold", cursor: "pointer", background: graphPeriod === p ? "rgba(244,200,122,0.12)" : "transparent", color: graphPeriod === p ? "var(--gold)" : "var(--text-dim)" }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {/* 月・週のナビゲーター */}
+              {graphPeriod !== "all" && (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                  <button onClick={() => graphPeriod === "month" ? setGraphMonthOffset(o => o - 1) : setGraphWeekOffset(o => o - 1)}
+                    style={{ background: "var(--border)", border: "none", color: "var(--text)", fontFamily: "inherit", width: "32px", height: "32px", borderRadius: "8px", fontSize: "16px", cursor: "pointer" }}>‹</button>
+                  <span style={{ color: "var(--text)", fontSize: "13px", fontWeight: "bold" }}>{periodLabel}</span>
+                  <button onClick={() => graphPeriod === "month" ? setGraphMonthOffset(o => Math.min(o + 1, 0)) : setGraphWeekOffset(o => Math.min(o + 1, 0))}
+                    style={{ background: "var(--border)", border: "none", color: "var(--text)", fontFamily: "inherit", width: "32px", height: "32px", borderRadius: "8px", fontSize: "16px", cursor: "pointer", opacity: (graphPeriod === "month" ? graphMonthOffset : graphWeekOffset) >= 0 ? 0.3 : 1 }}>›</button>
+                </div>
+              )}
+              <GraphView />
+            </>}
+            {historyTab === "calendar" && <CalView />}
+          </div>
+          {state.log.length > 0 && (() => {
+            const sortedLog = [...state.log].sort((a, b) => b.date.localeCompare(a.date));
+            const visible = sortedLog.slice(0, logShowCount);
+            const hasMore = sortedLog.length > logShowCount;
+            return (
+              <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "14px", padding: "14px 16px" }}>
+                <p style={{ color: "var(--gold)", fontSize: "12px", fontWeight: "bold", marginBottom: "10px" }}>
+                  全記録　<span style={{ color: "var(--text-dim)", fontWeight: "normal" }}>{visible.length}/{state.log.length}件表示</span>
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  {visible.map((entry, i) => (
+                    <div key={i} style={{ borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", paddingBottom: "6px", fontSize: "12px" }}>
+                      <span style={{ color: "var(--text-dim)", flexShrink: 0 }}>{entry.date}</span>
+                      <span style={{ color: "var(--text)", fontWeight: "bold" }}>{entry.weight}kg</span>
+                      <span style={{ color: "var(--text-dim)" }}>{entry.steps.toLocaleString()}歩</span>
+                      {entry.bmi > 0 && <span style={{ color: "var(--text-dim)" }}>BMI {entry.bmi}</span>}
+                      <span>{getStageInfo(entry.stage as Stage).label.split(" ")[0]}</span>
+                    </div>
+                  ))}
+                </div>
+                {hasMore && (
+                  <button onClick={() => setLogShowCount(c => c + 50)}
+                    style={{ marginTop: "12px", width: "100%", padding: "10px", background: "transparent", border: "1px solid var(--border)", borderRadius: "10px", color: "var(--text-dim)", fontFamily: "inherit", fontSize: "12px", cursor: "pointer" }}>
+                    もっと見る（残り{sortedLog.length - logShowCount}件）
+                  </button>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ background: "var(--bg)", minHeight: "100vh", paddingBottom: TAB_PAD }}>
@@ -398,14 +664,17 @@ export default function Page() {
             </p>
           )}
 
-          {/* History */}
+          {/* 直近3件プレビュー + 全履歴ボタン */}
           {state.log.length > 0 && (
             <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "14px", padding: "14px 16px", width: "100%" }}>
-              <p style={{ color: "var(--gold)", fontSize: "12px", fontWeight: "bold", marginBottom: "10px" }}>記録履歴</p>
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                {state.log.map((entry, i) => (
-                  <div key={i} style={{ borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", paddingBottom: "8px", fontSize: "12px" }}>
-                    <span style={{ color: "var(--text-dim)" }}>{entry.date}</span>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+                <p style={{ color: "var(--gold)", fontSize: "12px", fontWeight: "bold" }}>最近の記録</p>
+                <span style={{ color: "var(--text-dim)", fontSize: "11px" }}>全{state.log.length}件</span>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "12px" }}>
+                {[...state.log].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3).map((entry, i) => (
+                  <div key={i} style={{ borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", paddingBottom: "6px", fontSize: "12px" }}>
+                    <span style={{ color: "var(--text-dim)", flexShrink: 0 }}>{entry.date}</span>
                     <span style={{ color: "var(--text)", fontWeight: "bold" }}>{entry.weight}kg</span>
                     <span style={{ color: "var(--text-dim)" }}>{entry.steps.toLocaleString()}歩</span>
                     {entry.bmi > 0 && <span style={{ color: "var(--text-dim)" }}>BMI {entry.bmi}</span>}
@@ -413,6 +682,10 @@ export default function Page() {
                   </div>
                 ))}
               </div>
+              <button onClick={() => setRecordSubView("history")}
+                style={{ width: "100%", padding: "10px", background: "transparent", border: "1px solid var(--gold)", borderRadius: "10px", color: "var(--gold)", fontFamily: "inherit", fontSize: "13px", fontWeight: "bold", cursor: "pointer" }}>
+                📊 全履歴を見る（グラフ・カレンダー）
+              </button>
             </div>
           )}
         </div>

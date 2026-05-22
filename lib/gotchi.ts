@@ -200,25 +200,61 @@ export interface CollectionItem {
   name: string;
   emoji: string;
   hint: string;
+  characterId?: string; // 解放されるキャラクターID
 }
 
 export const COLLECTION: CollectionItem[] = [
-  { id: 'streak3',   name: '3日連続',     emoji: '🥉', hint: '3日連続で記録する' },
-  { id: 'streak7',   name: '1週間',       emoji: '🥈', hint: '7日連続で記録する' },
-  { id: 'streak30',  name: '30日連続',    emoji: '🥇', hint: '30日連続で記録する' },
-  { id: 'goal',      name: '目標達成！',   emoji: '🏆', hint: '目標体重を達成する' },
-  { id: 'pet50',     name: 'なで師',      emoji: '❤️', hint: '合計50回なでる' },
-  { id: 'mission10', name: 'ミッション10', emoji: '⭐', hint: 'ミッションを10回クリア' },
+  // キャラ解放実績 20個
+  { id:'first_record', name:'最初の一歩',   emoji:'👣', hint:'初めて体重を記録する',       characterId:'char01' },
+  { id:'streak3',      name:'3日連続',      emoji:'🥉', hint:'3日連続で記録する',          characterId:'char02' },
+  { id:'streak7',      name:'1週間連続',    emoji:'🥈', hint:'7日連続で記録する',          characterId:'char03' },
+  { id:'streak14',     name:'2週間連続',    emoji:'🎖️', hint:'14日連続で記録する',         characterId:'char04' },
+  { id:'log5',         name:'5件記録',      emoji:'📝', hint:'5回体重を記録する',          characterId:'char05' },
+  { id:'log10',        name:'10件記録',     emoji:'📊', hint:'10回体重を記録する',         characterId:'char06' },
+  { id:'log30',        name:'30件記録',     emoji:'📈', hint:'30回体重を記録する',         characterId:'char07' },
+  { id:'streak30',     name:'1ヶ月連続',    emoji:'🥇', hint:'30日連続で記録する',         characterId:'char08' },
+  { id:'mission5',     name:'ミッション5',  emoji:'⭐', hint:'ミッションを5回クリア',      characterId:'char09' },
+  { id:'mission10',    name:'ミッション10', emoji:'🌟', hint:'ミッションを10回クリア',     characterId:'char10' },
+  { id:'steps100k',    name:'10万歩',       emoji:'🚶', hint:'累計歩数10万歩を達成',       characterId:'char11' },
+  { id:'log50',        name:'50件記録',     emoji:'💎', hint:'50回体重を記録する',         characterId:'char12' },
+  { id:'mission20',    name:'ミッション20', emoji:'💫', hint:'ミッションを20回クリア',     characterId:'char13' },
+  { id:'steps500k',    name:'50万歩',       emoji:'🏃', hint:'累計歩数50万歩を達成',       characterId:'char14' },
+  { id:'goal',         name:'目標達成！',   emoji:'🏆', hint:'目標体重を達成する',         characterId:'char15' },
+  { id:'log100',       name:'100件記録',    emoji:'🎯', hint:'100回体重を記録する',        characterId:'char16' },
+  { id:'streak60',     name:'2ヶ月連続',    emoji:'🔮', hint:'60日連続で記録する',         characterId:'char17' },
+  { id:'pet100',       name:'なでなで100',  emoji:'❤️', hint:'合計100回なでる',            characterId:'char18' },
+  { id:'mission50',    name:'ミッション50', emoji:'👼', hint:'ミッションを50回クリア',     characterId:'char19' },
+  { id:'streak100',    name:'100日連続！',  emoji:'👑', hint:'100日連続で記録する',        characterId:'char20' },
+  // ボーナスバッジ（キャラ解放なし）
+  { id:'pet50', name:'なで師', emoji:'🤝', hint:'合計50回なでる' },
 ];
 
 export function getUnlockedIds(state: GotchiState): string[] {
   const ids: string[] = [];
-  if (state.streak >= 3)  ids.push('streak3');
-  if (state.streak >= 7)  ids.push('streak7');
-  if (state.streak >= 30) ids.push('streak30');
-  if (state.totalPets >= 50) ids.push('pet50');
-  if (state.missionsCompleted >= 10) ids.push('mission10');
+  const totalSteps = state.log.reduce((sum, e) => sum + e.steps, 0);
   const w = Number(state.weight), tw = Number(state.targetWeight);
-  if (w > 0 && tw > 0 && w <= tw) ids.push('goal');
+
+  if (state.log.length >= 1)              ids.push('first_record');
+  if (state.streak >= 3)                  ids.push('streak3');
+  if (state.streak >= 7)                  ids.push('streak7');
+  if (state.streak >= 14)                 ids.push('streak14');
+  if (state.streak >= 30)                 ids.push('streak30');
+  if (state.streak >= 60)                 ids.push('streak60');
+  if (state.streak >= 100)                ids.push('streak100');
+  if (state.log.length >= 5)              ids.push('log5');
+  if (state.log.length >= 10)             ids.push('log10');
+  if (state.log.length >= 30)             ids.push('log30');
+  if (state.log.length >= 50)             ids.push('log50');
+  if (state.log.length >= 100)            ids.push('log100');
+  if (state.missionsCompleted >= 5)       ids.push('mission5');
+  if (state.missionsCompleted >= 10)      ids.push('mission10');
+  if (state.missionsCompleted >= 20)      ids.push('mission20');
+  if (state.missionsCompleted >= 50)      ids.push('mission50');
+  if (totalSteps >= 100000)               ids.push('steps100k');
+  if (totalSteps >= 500000)               ids.push('steps500k');
+  if (w > 0 && tw > 0 && w <= tw)        ids.push('goal');
+  if (state.totalPets >= 50)              ids.push('pet50');
+  if (state.totalPets >= 100)             ids.push('pet100');
+
   return ids;
 }

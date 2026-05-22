@@ -24,7 +24,7 @@ export default function CharacterSelect({ onSelect }: Props) {
       </p>
 
       <div className="flex flex-col gap-4 w-full max-w-sm">
-        {CHARACTERS.map((char) => (
+        {CHARACTERS.filter(c => !c.unlockId).map((char) => (
           <button
             key={char.id}
             onClick={() => onSelect(char.id)}
